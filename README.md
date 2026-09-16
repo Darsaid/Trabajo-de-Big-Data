@@ -227,7 +227,25 @@ con una prueba representativa.
 El `Dockerfile` instala Python 3.11, Java 17, Dask y PySpark dentro de la
 imagen. Los datos masivos no se copian durante la construcción; se montan como
 volumen para conservar la imagen ligera y escribir los resultados directamente
-en las carpetas locales.
+en las carpetas locales. La descarga desde S3 y la descompresión se realizan
+antes de iniciar el contenedor, siguiendo `data/README.md`.
+
+El orden completo en otra máquina es:
+
+1. Clonar el repositorio.
+2. Descargar y descomprimir los datos en `data/raw/synthea23m/csv/`.
+3. Construir la imagen Docker.
+4. Ejecutar la prueba mínima de Dask y Spark.
+5. Ejecutar el pipeline con Docker Compose.
+
+Comprobar antes de iniciar el contenedor que existan estos archivos en el
+equipo anfitrión:
+
+```powershell
+Get-ChildItem .\data\raw\synthea23m\csv\person.csv
+Get-ChildItem .\data\raw\synthea23m\csv\visit_occurrence_0.csv
+Get-ChildItem .\data\raw\synthea23m\csv\visit_occurrence_1.csv
+```
 
 ### 1. Construir y probar la imagen
 
@@ -266,6 +284,11 @@ completo con Spark configurado con 16 particiones:
 docker compose build
 docker compose run --rm pipeline
 ```
+
+Dentro del contenedor, `/app/data/raw/synthea23m/csv` contiene los datos que
+estaban en `./data/raw/synthea23m/csv` del equipo anfitrión. El Parquet y los
+resultados generados por Dask y Spark aparecen automáticamente en las carpetas
+locales `data/processed` y `data/results`.
 
 Para guardar la evidencia de la ejecución completa:
 
