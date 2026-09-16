@@ -1,0 +1,8 @@
+dask[dataframe]>=2026.8.0
+distributed>=2026.8.0
+pandas>=3.0.5
+pyarrow>=25.0.1
+pyspark==3.5.2
+matplotlib>=3.11.2
+psutil==6.0.0
+python-snappy==0.7.3
