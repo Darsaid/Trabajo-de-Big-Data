@@ -3,38 +3,47 @@
 Este proyecto utiliza el caso médico Synthea y procesa dos archivos
 `visit_occurrence` de aproximadamente 10,32 GB en total.
 
-## Publicar y compartir el proyecto
+## Reproducir el proyecto desde GitHub
 
-El repositorio debe contener el código, `Dockerfile`, `docker-compose.yml`,
-`requirements.txt`, documentación, tabla comparativa y notebooks. No deben
-subirse los CSV masivos, el entorno `.venv`, el Parquet generado ni los
-resultados temporales. Estas rutas están excluidas en `.gitignore` porque
-ocupan varios gigabytes y se regeneran durante la ejecución.
+El código completo está disponible en el repositorio:
 
-Después de crear un repositorio vacío en GitHub, ejecutar desde la raíz del
-proyecto:
-
-```powershell
-git init
-git add .
-git status
-git commit -m "Entrega pipeline Dask Spark"
-git branch -M main
-git remote add origin https://github.com/USUARIO/NOMBRE-REPOSITORIO.git
-git push -u origin main
+```text
+https://github.com/Darsaid/Trabajo-de-Big-Data
 ```
 
-Cada integrante puede descargarlo así:
+Cada integrante debe clonarlo así:
 
 ```powershell
-git clone https://github.com/USUARIO/NOMBRE-REPOSITORIO.git
-cd NOMBRE-REPOSITORIO
+git clone https://github.com/Darsaid/Trabajo-de-Big-Data.git
+cd Trabajo-de-Big-Data
 ```
 
-Luego debe copiar sus datos Synthea en la ruta indicada en
-`data/README.md`, crear el entorno virtual e instalar las dependencias. El
-pipeline local se ejecuta con Python del `.venv`; para Docker, los datos se
-montan desde la carpeta local mediante `docker-compose.yml`.
+Después, debe obtener los datos Synthea desde el bucket público de AWS S3 y
+seguir las instrucciones de `data/README.md` para descargarlos, descomprimirlos
+y ubicarlos en `data/raw/synthea23m/csv/`. Los datos no están dentro de GitHub
+porque ocupan varios gigabytes.
+
+Crear el entorno e instalar las dependencias:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+Ejecutar el pipeline completo:
+
+```powershell
+python .\src\04_pipeline_integrado.py --shuffle-partitions 8 16
+```
+
+También se puede reproducir mediante Docker Compose, montando los datos
+locales en el contenedor:
+
+```powershell
+docker compose build
+docker compose run --rm pipeline
+```
 
 ## Flujo implementado
 
