@@ -25,6 +25,67 @@ La prueba mínima `src/05_prueba_docker.py` no necesita datos y solo confirma
 que Dask y PySpark funcionan dentro de la imagen. Para ejecutar el pipeline
 real con Docker sí deben existir los CSV en `data/raw/synthea23m/csv/`.
 
+## Flujo paso a paso recomendado
+
+### 1. Preparar los datos una sola vez
+
+Descargar y descomprimir los datos siguiendo [data/README.md](data/README.md).
+Al finalizar, deben existir estos archivos:
+
+```text
+data/raw/synthea23m/csv/person.csv
+data/raw/synthea23m/csv/visit_occurrence_0.csv
+data/raw/synthea23m/csv/visit_occurrence_1.csv
+```
+
+### 2. Construir la imagen Docker
+
+Desde la raíz del proyecto:
+
+```powershell
+docker compose build
+```
+
+La imagen instala Python, Java, Dask y PySpark. Los datos grandes no se
+copian a la imagen.
+
+### 3. Ejecutar la prueba mínima
+
+```powershell
+docker compose run --rm pipeline python src/05_prueba_docker.py
+```
+
+Debe mostrar que Dask calcula `2 + 2 = 4` y que Spark cuenta cinco filas.
+Esta prueba no usa los CSV.
+
+### 4. Ejecutar el pipeline real
+
+```powershell
+docker compose run --rm pipeline
+```
+
+El volumen definido en `docker-compose.yml` conecta las mismas carpetas:
+
+```text
+equipo:      ./data  <-->  contenedor: /app/data
+```
+
+Así, el contenedor lee los CSV desde `/app/data/raw` y escribe los resultados
+en `/app/data/processed` y `/app/data/results`, que aparecen directamente en
+las carpetas locales `data/processed` y `data/results`.
+
+### 5. Revisar los resultados
+
+```text
+data/results/pipeline_metrics.json
+data/results/spark_monthly/
+data/results/spark_top_months/
+data/results/plots/
+```
+
+El mismo flujo puede ejecutarse localmente con `.venv`, pero no es necesario
+activar `.venv` cuando se usa Docker.
+
 ## Reproducir el proyecto desde GitHub
 
 El código completo está disponible en el repositorio:
