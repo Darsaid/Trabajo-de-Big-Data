@@ -3,6 +3,28 @@
 Este proyecto utiliza el caso médico Synthea y procesa dos archivos
 `visit_occurrence` de aproximadamente 10,32 GB en total.
 
+## Local vs. Docker
+
+Son dos formas de ejecutar el mismo pipeline, no dos pipelines distintos:
+
+- **Local:** se usa `.venv`, Python y Java instalados en el equipo. El comando
+	principal es `python .\src\04_pipeline_integrado.py`.
+- **Docker:** la imagen instala Python, Java, Dask y PySpark. El contenedor
+	ejecuta el mismo código de `src/04_pipeline_integrado.py`.
+
+Los datos de Synthea no se suben a GitHub porque ocupan varios gigabytes. Se
+descargan y preparan una sola vez en el equipo anfitrión siguiendo
+`data/README.md`. Después pueden usarse de las dos maneras:
+
+```text
+data/raw/*.csv -> pipeline local
+data/raw/*.csv -> volumen ./data -> contenedor Docker -> pipeline
+```
+
+La prueba mínima `src/05_prueba_docker.py` no necesita datos y solo confirma
+que Dask y PySpark funcionan dentro de la imagen. Para ejecutar el pipeline
+real con Docker sí deben existir los CSV en `data/raw/synthea23m/csv/`.
+
 ## Reproducir el proyecto desde GitHub
 
 El código completo está disponible en el repositorio:
