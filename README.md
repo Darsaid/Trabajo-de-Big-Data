@@ -269,18 +269,24 @@ Get-ChildItem .\data\raw\synthea23m\csv\visit_occurrence_0.csv
 Get-ChildItem .\data\raw\synthea23m\csv\visit_occurrence_1.csv
 ```
 
-### 1. Construir y probar la imagen
+### 1. Construir la imagen
 
-Construir la imagen:
+Desde la carpeta raíz del proyecto, construir la imagen una sola vez:
 
 ```powershell
-docker build -t trabajo-bigdata .
+docker compose build
 ```
 
-Ejecutar la prueba mínima:
+Este comando instala Python, Java, Dask y PySpark dentro de la imagen. No
+descarga los datos ni los copia dentro de la imagen.
+
+### 2. Probar Dask y Spark sin datos
+
+Esta prueba es opcional, pero sirve para comprobar que Docker funciona antes
+de procesar los archivos grandes:
 
 ```powershell
-docker run --rm trabajo-bigdata
+docker compose run --rm pipeline python src/05_prueba_docker.py
 ```
 
 La salida esperada incluye:
@@ -293,17 +299,29 @@ PySpark disponible: filas de prueba = 5
 Guardar la salida de la prueba como evidencia:
 
 ```powershell
-docker build -t trabajo-bigdata .
-docker run --rm trabajo-bigdata 2>&1 | Tee-Object .\data\results\docker_smoke_test.txt
+docker compose run --rm pipeline python src/05_prueba_docker.py 2>&1 |
+	Tee-Object .\data\results\docker_smoke_test.txt
 ```
 
-### 2. Ejecutar el pipeline completo con Docker Compose
+### 3. Ejecutar el pipeline completo
 
-`docker-compose.yml` monta `./data` en `/app/data` y ejecuta el pipeline
-completo con Spark configurado con 16 particiones:
+El archivo `docker-compose.yml` monta la carpeta local `./data` dentro del
+contenedor como `/app/data` y ejecuta el pipeline con Spark configurado con 16
+particiones:
+
+```text
+Equipo anfitrión                 Contenedor
+./data  -----------------------> /app/data
+./data/raw/*.csv --------------> /app/data/raw/*.csv
+./data/results/ <--------------- /app/data/results/
+```
+
+Por tanto, no se debe copiar la carpeta de 10 GB a la imagen. Docker la usa
+como volumen y el contenedor lee y escribe directamente en la carpeta local.
+
+Ejecutar:
 
 ```powershell
-docker compose build
 docker compose run --rm pipeline
 ```
 
@@ -312,16 +330,26 @@ estaban en `./data/raw/synthea23m/csv` del equipo anfitrión. El Parquet y los
 resultados generados por Dask y Spark aparecen automáticamente en las carpetas
 locales `data/processed` y `data/results`.
 
-Para guardar la evidencia de la ejecución completa:
+Para guardar la evidencia de la ejecución completa en un archivo:
 
 ```powershell
-docker compose build
-docker compose run --rm pipeline 2>&1 | Tee-Object .\data\results\docker_pipeline_execution.txt
+docker compose run --rm pipeline 2>&1 |
+	Tee-Object .\data\results\docker_pipeline_execution.txt
 ```
 
 Los resultados quedan en `data/processed` y `data/results` porque `/app/data`
 se monta como volumen. La composición tiene un único servicio porque el
 pipeline utiliza Spark local; no requiere un clúster master/worker.
+
+### Comandos completos
+
+Si los datos ya están preparados, la secuencia mínima es:
+
+```powershell
+docker compose build
+docker compose run --rm pipeline python src/05_prueba_docker.py
+docker compose run --rm pipeline
+```
 
 ## Estructura principal
 
