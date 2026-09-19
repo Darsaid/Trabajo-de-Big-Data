@@ -2,23 +2,23 @@
   "pipeline": "Dask CSV -> Parquet -> Spark",
   "data_exchange": "Dask writes Parquet and Spark reads the same Parquet",
   "dask": {
-    "pipeline_seconds": 141.957,
-    "pipeline_memory_delta_mb": 2178.25,
-    "comparison_seconds": 0.932,
-    "comparison_memory_delta_mb": 0.0
+    "pipeline_seconds": 1218.663,
+    "pipeline_memory_delta_mb": 1539.7,
+    "comparison_seconds": 15.961,
+    "comparison_memory_delta_mb": 211.53
   },
   "spark_configurations": [
     {
       "shuffle_partitions": 8,
-      "pipeline_seconds": 24.939,
-      "comparison_seconds": 0.859,
-      "memory_delta_mb": 5.5
+      "pipeline_seconds": 124.628,
+      "comparison_seconds": 7.121,
+      "memory_delta_mb": 1.88
     },
     {
       "shuffle_partitions": 16,
-      "pipeline_seconds": 11.002,
-      "comparison_seconds": 0.786,
-      "memory_delta_mb": 0.21
+      "pipeline_seconds": 101.542,
+      "comparison_seconds": 4.483,
+      "memory_delta_mb": 0.0
     }
   ],
   "equivalent_operation": "groupBy visit_year and count visit_occurrence_id",
@@ -141,9 +141,9 @@
     "window": "dense_rank by visit_year ordered by visit_count"
   },
   "visualizations": [
-    "C:\\Users\\Usuario\\Desktop\\Trabajo BigData\\data\\results\\plots\\visitas_por_anio.png",
-    "C:\\Users\\Usuario\\Desktop\\Trabajo BigData\\data\\results\\plots\\promedio_visitas_por_mes.png",
-    "C:\\Users\\Usuario\\Desktop\\Trabajo BigData\\data\\results\\plots\\duracion_promedio_periodo.png"
+    "/app/data/results/plots/visitas_por_anio.png",
+    "/app/data/results/plots/promedio_visitas_por_mes.png",
+    "/app/data/results/plots/duracion_promedio_periodo.png"
   ],
   "shuffle_configurations": [
     8,

@@ -49,5 +49,9 @@ data/raw/synthea23m/csv/
 ```
 
 Debe contener `person.csv`, `visit_occurrence_0.csv` y
-`visit_occurrence_1.csv`. Las carpetas `data/processed/` y `data/results/` se
-generan automáticamente al ejecutar el pipeline.
+`visit_occurrence_1.csv`. `lzop` los genera en UTF-8 (unos 5,1 GB los
+dos archivos de visitas). No es necesario convertirlos: el pipeline detecta
+automáticamente si están en UTF-8 o en UTF-16.
+
+Las carpetas `data/processed/` y `data/results/` se generan automáticamente al
+ejecutar el pipeline.

@@ -1,7 +1,8 @@
 # Pipeline integrador Dask + Spark
 
 Este proyecto utiliza el caso médico Synthea y procesa dos archivos
-`visit_occurrence` de aproximadamente 10,32 GB en total.
+`visit_occurrence` de aproximadamente 5,1 GB en total (UTF-8, tal como los
+genera `lzop` al descomprimir).
 
 ## Local vs. Docker
 
@@ -132,7 +133,10 @@ docker compose run --rm pipeline
 
 `src/04_pipeline_integrado.py` ejecuta un único flujo:
 
-1. Dask lee los dos CSV UTF-16 y conserva cada archivo como una partición.
+1. Dask lee los dos CSV en bloques de 64 MB (unas 85 particiones en total).
+	El encoding se detecta automáticamente: los CSV en UTF-8 se dividen en
+	bloques; si alguna copia está en UTF-16 (con BOM), cada archivo se lee como
+	una sola partición porque ese formato no puede dividirse de forma segura.
 2. Dask limpia fechas y valores faltantes, selecciona columnas y crea
 	`visit_year`, `visit_month` y `visit_duration_days`.
 3. Dask escribe `data/processed/visits_parquet`.
@@ -154,8 +158,9 @@ agregaciones, joins y funciones de ventana sobre el Parquet columnar.
 El flujo está organizado en cuatro etapas y usa Parquet como contrato de
 intercambio entre motores:
 
-1. **Ingesta Dask:** se leen los dos archivos `visit_occurrence` en UTF-16 y
-	se concatenan como particiones Dask, sin cargar todo el dataset en pandas.
+1. **Ingesta Dask:** se leen los dos archivos `visit_occurrence` en bloques
+	de 64 MB y se concatenan como particiones Dask, sin cargar todo el dataset
+	en pandas.
 2. **Limpieza Dask:** se seleccionan las columnas necesarias, se convierten
 	fechas, se eliminan registros sin identificadores o fecha de inicio, se
 	imputan valores faltantes y se crean `visit_year`, `visit_month` y
@@ -275,12 +280,16 @@ El script genera:
 - `data/results/plots/promedio_visitas_por_mes.png`: promedio mensual de visitas.
 - `data/results/plots/duracion_promedio_periodo.png`: duración promedio por periodo.
 
-En la ejecución registrada en `data/results/pipeline_metrics.json`, Dask tardó
-141,957 s en la etapa de ingesta, limpieza y escritura Parquet. Spark tardó
-24,939 s con 8 particiones de shuffle y 11,002 s con 16 particiones para su
+En la ejecución registrada en `data/results/pipeline_metrics.json` (Docker
+Compose con ~4 GB de RAM, CSV UTF-8 en 85 particiones de 64 MB), Dask tardó
+1218,663 s en la etapa de ingesta, limpieza y escritura Parquet. Spark tardó
+124,628 s con 8 particiones de shuffle y 101,542 s con 16 particiones para su
 etapa completa. La operación equivalente de conteo por `visit_year` tardó
-0,932 s en Dask, 0,859 s en Spark con 8 particiones y 0,786 s en Spark con 16
-particiones. Los resultados fueron iguales.
+15,961 s en Dask, 7,121 s en Spark con 8 particiones y 4,483 s en Spark con 16
+particiones. Los resultados fueron iguales: 42.404.379 visitas válidas.
+
+Para no superar la memoria del contenedor, la etapa Dask se ejecuta en un
+proceso aparte que libera su memoria antes de iniciar la JVM de Spark.
 
 ## Comparación y conclusión técnica
 
@@ -367,8 +376,8 @@ docker compose run --rm pipeline python src/05_prueba_docker.py 2>&1 |
 ### 3. Ejecutar el pipeline completo
 
 El archivo `docker-compose.yml` monta la carpeta local `./data` dentro del
-contenedor como `/app/data` y ejecuta el pipeline con Spark configurado con 16
-particiones:
+contenedor como `/app/data` y ejecuta el pipeline con Spark configurado con 8
+y 16 particiones de shuffle:
 
 ```text
 Equipo anfitrión                 Contenedor
@@ -377,7 +386,7 @@ Equipo anfitrión                 Contenedor
 ./data/results/ <--------------- /app/data/results/
 ```
 
-Por tanto, no se debe copiar la carpeta de 10 GB a la imagen. Docker la usa
+Por tanto, no se debe copiar la carpeta de datos (varios GB) a la imagen. Docker la usa
 como volumen y el contenedor lee y escribe directamente en la carpeta local.
 
 Ejecutar:
@@ -401,6 +410,19 @@ docker compose run --rm pipeline 2>&1 |
 Los resultados quedan en `data/processed` y `data/results` porque `/app/data`
 se monta como volumen. La composición tiene un único servicio porque el
 pipeline utiliza Spark local; no requiere un clúster master/worker.
+
+### Memoria de Docker
+
+Docker Desktop suele asignar unos 4 GB de RAM a los contenedores. Por eso
+`docker-compose.yml` limita la memoria del driver de Spark con
+`SPARK_DRIVER_MEMORY: 2g`; con el valor local por defecto (4 GB) la JVM supera
+el límite del contenedor y Spark se detiene con
+`Py4JNetworkError: Answer from Java side is empty`. Si Docker Desktop tiene
+más memoria asignada (Settings -> Resources), puede subirse ese valor.
+
+Durante el `join` Spark puede mostrar avisos
+`WARN RowBasedKeyValueBatch: Calling spill()`. Solo indican que la memoria
+está ajustada; Spark continúa y el resultado es correcto.
 
 ### Comandos completos
 

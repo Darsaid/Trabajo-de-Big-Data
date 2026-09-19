@@ -19,7 +19,47 @@ DATA_DIR = (
 
 PERSON_FILE = DATA_DIR / "person.csv"
 
-VISIT_FILES = str(DATA_DIR / "visit_occurrence_*.csv")
+VISIT_FILES = [
+    DATA_DIR / "visit_occurrence_0.csv",
+    DATA_DIR / "visit_occurrence_1.csv",
+]
+
+# visit_occurrence_1.csv no tiene encabezado.
+VISIT_COLUMNS = [
+    "visit_occurrence_id",
+    "person_id",
+    "visit_concept_id",
+    "visit_start_date",
+    "visit_start_datetime",
+    "visit_end_date",
+    "visit_end_datetime",
+    "visit_type_concept_id",
+    "provider_id",
+    "care_site_id",
+    "visit_source_value",
+    "visit_source_concept_id",
+    "admitting_source_concept_id",
+    "admitting_source_value",
+    "discharge_to_concept_id",
+    "discharge_to_source_value",
+    "preceding_visit_occurrence_id",
+]
+
+
+def detectar_encoding(path):
+    """UTF-16 si el archivo empieza con BOM UTF-16; si no, UTF-8."""
+    with open(path, "rb") as file:
+        bom = file.read(2)
+    return "utf-16" if bom in (b"\xff\xfe", b"\xfe\xff") else "utf-8"
+
+
+def opciones_csv(path):
+    """UTF-8 se lee en bloques de 64 MB; UTF-16 no puede dividirse."""
+    encoding = detectar_encoding(path)
+    return {
+        "encoding": encoding,
+        "blocksize": "64MB" if encoding == "utf-8" else None,
+    }
 
 
 # ============================================================
@@ -47,8 +87,7 @@ start = time.perf_counter()
 person = dd.read_csv(
     PERSON_FILE,
     assume_missing=True,
-    blocksize="64MB",
-    encoding="utf-16"
+    **opciones_csv(PERSON_FILE)
 )
 
 print(f"\nColumnas: {len(person.columns)}")
@@ -79,12 +118,20 @@ print("=" * 70)
 
 start = time.perf_counter()
 
-visits = dd.read_csv(
-    VISIT_FILES,
-    assume_missing=True,
-    blocksize="64MB",
-    encoding="utf-16"
-)
+visits = dd.concat([
+    dd.read_csv(
+        VISIT_FILES[0],
+        assume_missing=True,
+        **opciones_csv(VISIT_FILES[0])
+    ),
+    dd.read_csv(
+        VISIT_FILES[1],
+        header=None,
+        names=VISIT_COLUMNS,
+        assume_missing=True,
+        **opciones_csv(VISIT_FILES[1])
+    ),
+])
 
 print(f"\nColumnas: {len(visits.columns)}")
 

@@ -9,10 +9,13 @@ services:
       JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
       PYSPARK_PYTHON: python
       SPARK_LOCAL_IP: 127.0.0.1
+      SPARK_DRIVER_MEMORY: 2g
+      PYTHONUNBUFFERED: "1"
     volumes:
       - ./data:/app/data
     command:
       - python
       - src/04_pipeline_integrado.py
       - --shuffle-partitions
+      - "8"
       - "16"

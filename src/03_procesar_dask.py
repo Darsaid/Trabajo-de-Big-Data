@@ -33,6 +33,22 @@ VISIT_FILES = [
 ]
 
 
+def detectar_encoding(path):
+    """UTF-16 si el archivo empieza con BOM UTF-16; si no, UTF-8."""
+    with open(path, "rb") as file:
+        bom = file.read(2)
+    return "utf-16" if bom in (b"\xff\xfe", b"\xfe\xff") else "utf-8"
+
+
+def opciones_csv(path):
+    """UTF-8 se lee en bloques de 64 MB; UTF-16 no puede dividirse."""
+    encoding = detectar_encoding(path)
+    return {
+        "encoding": encoding,
+        "blocksize": "64MB" if encoding == "utf-8" else None,
+    }
+
+
 # ============================================================
 # FUNCIÓN DE PROCESAMIENTO POR PARTICIÓN
 # ============================================================
@@ -191,8 +207,7 @@ visit_columns = [
 visits_with_header = dd.read_csv(
     str(VISIT_FILES[0]),
     assume_missing=True,
-    blocksize=None,
-    encoding="utf-16"
+    **opciones_csv(VISIT_FILES[0])
 )
 
 visits_without_header = dd.read_csv(
@@ -200,8 +215,7 @@ visits_without_header = dd.read_csv(
     header=None,
     names=visit_columns,
     assume_missing=True,
-    blocksize=None,
-    encoding="utf-16"
+    **opciones_csv(VISIT_FILES[1])
 )
 
 visits = dd.concat([visits_with_header, visits_without_header])

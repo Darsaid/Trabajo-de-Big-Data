@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import multiprocessing
 import os
 import shutil
 import time
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import dask.dataframe as dd
@@ -79,6 +81,41 @@ def memory_mb() -> float:
     Memoria RSS actual del proceso Python en MB.
     """
     return psutil.Process().memory_info().rss / (1024**2)
+
+
+# ============================================================
+# ENCODING DE LOS CSV
+# ============================================================
+
+def detectar_encoding(path: Path) -> str:
+    """
+    Devuelve "utf-16" si el archivo empieza con BOM UTF-16
+    y "utf-8" en cualquier otro caso.
+
+    Descomprimir los .lzo con lzop genera UTF-8, pero algunas
+    copias previas del dataset fueron convertidas a UTF-16.
+    """
+    with open(path, "rb") as file:
+        bom = file.read(2)
+
+    if bom in (b"\xff\xfe", b"\xfe\xff"):
+        return "utf-16"
+
+    return "utf-8"
+
+
+def opciones_csv(path: Path) -> dict:
+    """
+    UTF-8 se lee en bloques de 64 MB para no cargar cada CSV
+    completo en memoria. UTF-16 no puede dividirse en bloques
+    de forma segura, por lo que se lee un archivo por partición.
+    """
+    encoding = detectar_encoding(path)
+
+    return {
+        "encoding": encoding,
+        "blocksize": "64MB" if encoding == "utf-8" else None,
+    }
 
 
 # ============================================================
@@ -218,8 +255,7 @@ def ejecutar_dask() -> tuple[float, float]:
     with_header = dd.read_csv(
         str(VISIT_FILES[0]),
         assume_missing=True,
-        blocksize=None,
-        encoding="utf-16",
+        **opciones_csv(VISIT_FILES[0]),
     )
 
     # --------------------------------------------------------
@@ -232,8 +268,7 @@ def ejecutar_dask() -> tuple[float, float]:
         header=None,
         names=VISIT_COLUMNS,
         assume_missing=True,
-        blocksize=None,
-        encoding="utf-16",
+        **opciones_csv(VISIT_FILES[1]),
     )
 
     # --------------------------------------------------------
@@ -512,7 +547,7 @@ def ejecutar_spark(
         )
         .config(
             "spark.driver.memory",
-            "4g",
+            os.environ.get("SPARK_DRIVER_MEMORY", "4g"),
         )
         .config(
             "spark.hadoop.io.native.lib.available",
@@ -623,7 +658,10 @@ def ejecutar_spark(
         )
         .option(
             "encoding",
-            "UTF-16",
+            detectar_encoding(
+                DATA_DIR
+                / "person.csv"
+            ).upper(),
         )
         .csv(
             str(
@@ -1137,9 +1175,17 @@ def main() -> None:
     # 1. DASK
     # --------------------------------------------------------
 
-    dask_time, dask_memory = (
-        ejecutar_dask()
-    )
+    # Dask se ejecuta en un proceso aparte: al terminar, el
+    # sistema recupera toda su memoria antes de iniciar la JVM
+    # de Spark. En Docker (~4 GB) ambos no caben a la vez.
+
+    with ProcessPoolExecutor(
+        max_workers=1,
+        mp_context=multiprocessing.get_context("spawn"),
+    ) as executor:
+        dask_time, dask_memory = (
+            executor.submit(ejecutar_dask).result()
+        )
 
     # --------------------------------------------------------
     # 2. COMPARACIÓN DASK
